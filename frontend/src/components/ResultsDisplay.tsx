@@ -22,16 +22,27 @@ interface RefinementResult {
   success: boolean;
   idea_id?: string;
   refined_requirements?: string;
+  sections?: {
+    refined_requirements: string;
+    trade_offs: string;
+    next_steps: string;
+  };
   debate_log?: Array<{
     agent: string;
     response: string;
     round: number;
+    fallback?: boolean;
   }>;
   error?: string;
+  fallback_used?: boolean;
+  fallback_message?: string;
+  api_calls_made?: number;
 }
 
 interface ResultsDisplayProps {
   result: RefinementResult;
+  onFeedbackSubmit?: (feedback: string) => void;
+  isFeedbackLoading?: boolean;
 }
 
 // Helper function to format markdown text
@@ -146,7 +157,80 @@ const TimelineComponent = ({ steps }: { steps: string[] }) => {
   );
 };
 
-export default function ResultsDisplay({ result }: ResultsDisplayProps) {
+// Feedback form component
+const FeedbackForm = ({ onSubmit, isLoading }: { onSubmit: (feedback: string) => void; isLoading: boolean }) => {
+  const [feedback, setFeedback] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (feedback.trim() && !isLoading) {
+      onSubmit(feedback.trim());
+      setFeedback('');
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mt-8 bg-[#052659]/30 rounded-xl p-6 border border-[#26425A]"
+    >
+      <div className="flex items-center mb-4">
+        <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-[#C38EB4] to-[#B6ABCF] flex items-center justify-center mr-3">
+          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+        </div>
+        <h3 className="text-xl font-bold text-white">Provide Feedback</h3>
+      </div>
+      
+      <p className="text-[#E1CBD7] text-sm mb-4">
+        What did you like or dislike about this analysis? Provide specific feedback to refine the requirements further.
+      </p>
+      
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="feedback" className="block text-sm font-medium text-[#E1CBD7] mb-2">
+            Your Feedback
+          </label>
+          <textarea
+            id="feedback"
+            value={feedback}
+            onChange={(e) => setFeedback(e.target.value)}
+            placeholder="e.g., I liked the technical approach but the designer's suggestions were too complex. The business manager's revenue model needs more detail..."
+            className="w-full px-4 py-3 border border-[#26425A] rounded-xl focus:ring-2 focus:ring-[#C38EB4] focus:border-transparent bg-[#021024]/50 text-white placeholder-[#E1CBD7]/50 resize-none transition-all duration-200"
+            rows={4}
+            disabled={isLoading}
+          />
+        </div>
+        
+        <button
+          type="submit"
+          disabled={!feedback.trim() || isLoading}
+          className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-[#C38EB4] to-[#B6ABCF] text-white font-semibold rounded-xl hover:from-[#B6ABCF] hover:to-[#C38EB4] shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isLoading ? (
+            <>
+              <svg className="w-5 h-5 mr-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Refining...
+            </>
+          ) : (
+            <>
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              Refine Further (1 Credit)
+            </>
+          )}
+        </button>
+      </form>
+    </motion.div>
+  );
+};
+
+export default function ResultsDisplay({ result, onFeedbackSubmit, isFeedbackLoading }: ResultsDisplayProps) {
   const [activeTab, setActiveTab] = useState<'requirements' | 'debate'>('requirements');
 
   if (!result.success) {
@@ -194,13 +278,50 @@ export default function ResultsDisplay({ result }: ResultsDisplayProps) {
     return sections;
   };
 
-  const sections = parseRequirements(result.refined_requirements || '');
+  // Use sections from backend if available, otherwise parse the text
+  const sections = result.sections || parseRequirements(result.refined_requirements || '');
   
   // Parse next steps into individual steps
-  const nextSteps = sections.next_steps
-    .split('\n')
-    .filter(line => line.trim().match(/^\d+\./))
-    .map(line => line.trim());
+  const parseNextSteps = (nextStepsText: string) => {
+    if (!nextStepsText || nextStepsText.trim() === '') {
+      return [];
+    }
+
+    // Try different parsing strategies
+    const lines = nextStepsText.split('\n').filter(line => line.trim());
+    
+    // Strategy 1: Look for numbered items (1., 2., etc.)
+    let steps = lines.filter(line => line.trim().match(/^\d+\./));
+    
+    // Strategy 2: If no numbered items, look for bullet points (-, *, •)
+    if (steps.length === 0) {
+      steps = lines.filter(line => line.trim().match(/^[-*•]/));
+    }
+    
+    // Strategy 3: If still no items, split by double newlines or look for key phrases
+    if (steps.length === 0) {
+      // Look for lines that contain action words
+      steps = lines.filter(line => 
+        line.trim().length > 10 && 
+        /^(implement|create|develop|build|design|test|launch|deploy|analyze|research|plan|execute)/i.test(line.trim())
+      );
+    }
+    
+    // Strategy 4: If still nothing, just use non-empty lines
+    if (steps.length === 0) {
+      steps = lines.filter(line => line.trim().length > 5);
+    }
+    
+    return steps.map(line => line.trim());
+  };
+
+  const nextSteps = parseNextSteps(sections.next_steps);
+
+  // Debug logging
+  console.log('Result sections:', result.sections);
+  console.log('Parsed sections:', sections);
+  console.log('Next steps:', nextSteps);
+  console.log('Next steps text:', sections.next_steps);
 
   return (
     <motion.div
@@ -208,6 +329,32 @@ export default function ResultsDisplay({ result }: ResultsDisplayProps) {
       animate={{ opacity: 1, y: 0 }}
       className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 overflow-hidden"
     >
+      {/* Fallback Warning Banner */}
+      {result.fallback_used && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border-b border-yellow-500/30 p-4"
+        >
+          <div className="flex items-center">
+            <AlertTriangle className="h-5 w-5 text-yellow-400 mr-3" />
+            <div className="flex-1">
+              <h4 className="text-sm font-semibold text-yellow-200 mb-1">
+                API Quota Exceeded
+              </h4>
+              <p className="text-xs text-yellow-100">
+                {result.fallback_message || 'Analysis completed using fallback responses. For more detailed AI-powered analysis, please try again later when quota resets.'}
+              </p>
+            </div>
+            {result.api_calls_made !== undefined && (
+              <div className="text-xs text-yellow-300 bg-yellow-500/20 px-2 py-1 rounded">
+                {result.api_calls_made} API calls used
+              </div>
+            )}
+          </div>
+        </motion.div>
+      )}
+
       {/* Tab Navigation */}
       <div className="border-b border-white/10">
         <nav className="flex">
@@ -318,7 +465,20 @@ export default function ResultsDisplay({ result }: ResultsDisplayProps) {
               </div>
               
               <div className="bg-gradient-to-r from-cyan-500/10 to-blue-500/10 rounded-xl p-6 border border-cyan-500/20">
-                <TimelineComponent steps={nextSteps} />
+                {nextSteps.length > 0 ? (
+                  <TimelineComponent steps={nextSteps} />
+                ) : (
+                  <div className="text-center py-8">
+                    <Clock className="w-12 h-12 text-cyan-400 mx-auto mb-4" />
+                    <h4 className="text-lg font-semibold text-white mb-2">Next Steps</h4>
+                    <p className="text-cyan-200">
+                      {sections.next_steps && sections.next_steps.trim() ? 
+                        sections.next_steps : 
+                        'Next steps will be generated based on the refined requirements.'
+                      }
+                    </p>
+                  </div>
+                )}
               </div>
             </motion.div>
           </motion.div>
@@ -354,6 +514,11 @@ export default function ResultsDisplay({ result }: ResultsDisplayProps) {
                         <span className="text-sm text-purple-300 bg-purple-500/20 px-2 py-1 rounded">
                           Round {debate.round}
                         </span>
+                        {debate.fallback && (
+                          <span className="text-xs text-yellow-300 bg-yellow-500/20 px-2 py-1 rounded border border-yellow-500/30">
+                            Fallback
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="text-purple-100 leading-relaxed">
@@ -366,6 +531,14 @@ export default function ResultsDisplay({ result }: ResultsDisplayProps) {
           </motion.div>
         )}
       </div>
+      
+      {/* Feedback Form - only show if we have a successful result and feedback handler */}
+      {result.success && onFeedbackSubmit && (
+        <FeedbackForm 
+          onSubmit={onFeedbackSubmit} 
+          isLoading={isFeedbackLoading || false} 
+        />
+      )}
     </motion.div>
   );
 }

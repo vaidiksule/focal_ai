@@ -17,8 +17,11 @@ interface User {
 interface UserContextType {
   user: User | null;
   loading: boolean;
+  refreshing: boolean;
   error: string | null;
   refreshUser: () => Promise<void>;
+  updateUser: (userData: User) => void;
+  forceRefreshUser: () => Promise<void>;
   deductCredits: (amount: number) => Promise<boolean>;
   updateCredits: (newCredits: number) => void;
 }
@@ -29,6 +32,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const { data: session, status } = useSession();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch user data when session changes
@@ -112,11 +116,43 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateUser = (userData: User) => {
+    setUser(userData);
+  };
+
+  const forceRefreshUser = async () => {
+    if (!session?.idToken) return;
+    
+    try {
+      setRefreshing(true);
+      const response = await fetch('http://localhost:8000/api/users/profile/', {
+        headers: {
+          'Authorization': `Bearer ${session.idToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setUser(data.user);
+        console.log('User data refreshed from backend:', data.user);
+      }
+    } catch (err) {
+      console.error('Error refreshing user data:', err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const value: UserContextType = {
     user,
     loading,
+    refreshing,
     error,
     refreshUser,
+    updateUser,
+    forceRefreshUser,
     deductCredits,
     updateCredits,
   };

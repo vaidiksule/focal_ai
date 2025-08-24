@@ -4,7 +4,10 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from django.conf import settings
 import json
+import time
 
+
+ROUNDS = 3
 
 class MultiAgentSystem:
     """Multi-agent system for requirement refinement using LangChain + Gemini"""
@@ -15,8 +18,13 @@ class MultiAgentSystem:
         self.llm = ChatGoogleGenerativeAI(
             model="gemini-1.5-flash",
             google_api_key=settings.GEMINI_API_KEY,
-            temperature=0.7
+            temperature=0.7,
+            max_retries=0  # Disable retries to prevent quota waste
         )
+        
+        # Track API usage to prevent quota exhaustion
+        self.api_calls_made = 0
+        self.max_api_calls = 45  # Leave some buffer for other operations
         
         # Define agent personas
         self.agents = {
@@ -57,34 +65,61 @@ class MultiAgentSystem:
             }
         }
     
-    def get_agent_response(self, agent_key, idea, context=""):
-        """Get response from a specific agent"""
+    def check_api_quota(self):
+        """Check if we have API calls remaining"""
+        return self.api_calls_made < self.max_api_calls
+    
+    def increment_api_calls(self):
+        """Increment API call counter"""
+        self.api_calls_made += 1
+    
+    def get_agent_response(self, agent_key, idea, context="", previous_debate="", user_feedback=""):
+        """Get response from a specific agent with context from previous debate and user feedback"""
         agent = self.agents[agent_key]
+        
+        # Check if we should use fallback due to quota
+        if not self.check_api_quota():
+            return self._get_fallback_response(agent_key, idea)
+        
+        # Build context string
+        context_parts = []
+        if context:
+            context_parts.append(f"Previous context: {context}")
+        if previous_debate:
+            context_parts.append(f"Previous debate: {previous_debate}")
+        if user_feedback:
+            context_parts.append(f"User feedback: {user_feedback}")
+        
+        full_context = "\n\n".join(context_parts)
         
         prompt = ChatPromptTemplate.from_messages([
             ("system", agent['system_prompt']),
             ("human", f"""Product Idea: {idea}
             
-            Context from previous discussion: {context}
+            {full_context}
             
             As a {agent['name']}, provide your perspective on this product idea. Focus on {agent['focus']}.
             
+            If this is a feedback iteration, consider the user's feedback and previous discussion when forming your response.
+            
             Provide a concise but thoughtful response (2-3 paragraphs) that includes:
-            1. Your initial thoughts on the idea
+            1. Your thoughts on the idea and any feedback provided
             2. Key considerations from your perspective
-            3. Potential challenges or opportunities
-            4. Suggestions for improvement
+            3. How your perspective addresses or builds upon previous discussion
+            4. Specific suggestions for improvement
             
             Be specific and actionable in your feedback.""")
         ])
         
         try:
+            self.increment_api_calls()
             response = self.llm.invoke(prompt.format_messages())
             return response.content
         except Exception as e:
             error_msg = str(e)
             if "quota" in error_msg.lower() or "rate limit" in error_msg.lower() or "429" in error_msg:
-                # Return a fallback response instead of error message
+                # Mark quota as exhausted
+                self.api_calls_made = self.max_api_calls
                 return self._get_fallback_response(agent_key, idea)
             else:
                 return f"Error getting response from {agent['name']}: {error_msg}"
@@ -135,9 +170,22 @@ Suggestions: Define clear success metrics, prioritize features based on user val
         
         return fallback_responses.get(agent_key, f"Analysis from {self.agents[agent_key]['name']}: {idea[:100]}...")
     
-    def run_debate(self, idea, rounds=1):
+    def run_debate(self, idea, rounds=ROUNDS):
         """Run multi-agent debate for the given idea - optimized for rate limits"""
         debate_log = []
+        
+        # Check if we should use fallback mode from the start
+        if not self.check_api_quota():
+            # Use fallback responses for all agents
+            for agent_key in self.agents.keys():
+                response = self._get_fallback_response(agent_key, idea)
+                debate_log.append({
+                    'agent': self.agents[agent_key]['name'],
+                    'response': response,
+                    'round': 1,
+                    'fallback': True
+                })
+            return debate_log
         
         # Single round with all agents to reduce API calls
         round_responses = []
@@ -147,7 +195,54 @@ Suggestions: Define clear success metrics, prioritize features based on user val
             round_responses.append({
                 'agent': self.agents[agent_key]['name'],
                 'response': response,
-                'round': 1
+                'round': 1,
+                'fallback': not self.check_api_quota()  # Mark if we hit quota during processing
+            })
+        
+        # Add responses to debate log
+        debate_log.extend(round_responses)
+        
+        return debate_log
+    
+    def run_feedback_debate(self, idea, previous_debate_log, user_feedback):
+        """Run multi-agent debate based on user feedback and previous discussion"""
+        debate_log = []
+        
+        # Check if we should use fallback mode
+        if not self.check_api_quota():
+            # Use fallback responses for all agents
+            for agent_key in self.agents.keys():
+                response = self._get_fallback_response(agent_key, idea)
+                debate_log.append({
+                    'agent': self.agents[agent_key]['name'],
+                    'response': response,
+                    'round': len(previous_debate_log) // len(self.agents) + 1,
+                    'fallback': True
+                })
+            return debate_log
+        
+        # Create context from previous debate
+        previous_debate_context = "\n\n".join([
+            f"{resp['agent']}: {resp['response']}"
+            for resp in previous_debate_log
+        ])
+        
+        # Single round with all agents considering feedback
+        round_responses = []
+        
+        for agent_key in self.agents.keys():
+            response = self.get_agent_response(
+                agent_key, 
+                idea, 
+                context="",
+                previous_debate=previous_debate_context,
+                user_feedback=user_feedback
+            )
+            round_responses.append({
+                'agent': self.agents[agent_key]['name'],
+                'response': response,
+                'round': len(previous_debate_log) // len(self.agents) + 1,
+                'fallback': not self.check_api_quota()
             })
         
         # Add responses to debate log
@@ -157,6 +252,10 @@ Suggestions: Define clear success metrics, prioritize features based on user val
     
     def aggregate_results(self, idea, debate_log):
         """Aggregate debate results into refined requirements"""
+        # Check if we should use fallback aggregation
+        if not self.check_api_quota():
+            return self._get_fallback_aggregation(idea, debate_log)
+        
         # Create summary of all responses
         all_responses = "\n\n".join([
             f"{resp['agent']} (Round {resp['round']}): {resp['response']}"
@@ -191,16 +290,66 @@ Suggestions: Define clear success metrics, prioritize features based on user val
         ])
         
         try:
+            self.increment_api_calls()
             response = self.llm.invoke(aggregation_prompt.format_messages())
             return response.content
         except Exception as e:
-            return f"Error aggregating results: {str(e)}"
+            error_msg = str(e)
+            if "quota" in error_msg.lower() or "rate limit" in error_msg.lower() or "429" in error_msg:
+                self.api_calls_made = self.max_api_calls
+                return self._get_fallback_aggregation(idea, debate_log)
+            else:
+                return f"Error aggregating results: {str(e)}"
+    
+    def _get_fallback_aggregation(self, idea, debate_log):
+        """Provide fallback aggregation when API quota is exhausted"""
+        # Extract key points from debate log
+        key_points = []
+        for resp in debate_log:
+            if resp['response'] and len(resp['response']) > 50:
+                key_points.append(f"{resp['agent']}: {resp['response'][:200]}...")
+        
+        fallback_aggregation = f"""Based on the stakeholder analysis of: {idea[:100]}...
+
+1. REFINED REQUIREMENTS:
+- Conduct market research to validate demand and identify target users
+- Define clear value proposition and competitive positioning
+- Establish technical architecture and development roadmap
+- Create user experience design and interface mockups
+- Develop business model and revenue strategy
+- Plan for scalability and future growth
+- Address security and compliance requirements
+- Establish success metrics and measurement framework
+
+2. TRADE-OFFS:
+- Speed to market vs. comprehensive feature set - balance MVP approach with user expectations
+- Technical complexity vs. user experience - ensure technology choices support usability goals
+- Cost vs. quality - prioritize features that deliver maximum user value
+- Scalability vs. development time - plan for growth while maintaining development velocity
+- User customization vs. simplicity - find the right balance for target users
+
+3. NEXT STEPS:
+- Week 1-2: Conduct user research and market validation
+- Week 3-4: Create detailed technical specifications and architecture
+- Week 5-6: Develop wireframes and user interface designs
+- Week 7-8: Build MVP prototype and conduct user testing
+- Week 9-10: Iterate based on feedback and prepare for development
+
+Note: This analysis was generated using fallback responses due to API quota limitations. For more detailed AI-powered analysis, please try again later when quota resets."""
+        
+        return fallback_aggregation
     
     def refine_requirements(self, idea):
         """Main function to refine requirements using multi-agent debate"""
         try:
+            # Reset API call counter for this session
+            self.api_calls_made = 0
+            
             # Run the debate
             debate_log = self.run_debate(idea, rounds=4)
+            
+            # Check if we used fallback responses
+            used_fallback = any(resp.get('fallback', False) for resp in debate_log)
             
             # Aggregate results
             refined_requirements = self.aggregate_results(idea, debate_log)
@@ -208,7 +357,9 @@ Suggestions: Define clear success metrics, prioritize features based on user val
             return {
                 'success': True,
                 'debate_log': debate_log,
-                'refined_requirements': refined_requirements
+                'refined_requirements': refined_requirements,
+                'used_fallback': used_fallback or not self.check_api_quota(),
+                'api_calls_made': self.api_calls_made
             }
             
         except Exception as e:
@@ -216,5 +367,40 @@ Suggestions: Define clear success metrics, prioritize features based on user val
                 'success': False,
                 'error': str(e),
                 'debate_log': [],
-                'refined_requirements': ""
+                'refined_requirements': "",
+                'used_fallback': True,
+                'api_calls_made': self.api_calls_made
+            }
+    
+    def refine_requirements_with_feedback(self, idea, previous_debate_log, user_feedback):
+        """Refine requirements based on user feedback and previous debate"""
+        try:
+            # Reset API call counter for this session
+            self.api_calls_made = 0
+            
+            # Run feedback-based debate
+            debate_log = self.run_feedback_debate(idea, previous_debate_log, user_feedback)
+            
+            # Check if we used fallback responses
+            used_fallback = any(resp.get('fallback', False) for resp in debate_log)
+            
+            # Aggregate results
+            refined_requirements = self.aggregate_results(idea, debate_log)
+            
+            return {
+                'success': True,
+                'debate_log': debate_log,
+                'refined_requirements': refined_requirements,
+                'used_fallback': used_fallback or not self.check_api_quota(),
+                'api_calls_made': self.api_calls_made
+            }
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e),
+                'debate_log': [],
+                'refined_requirements': "",
+                'used_fallback': True,
+                'api_calls_made': self.api_calls_made
             }

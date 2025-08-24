@@ -18,18 +18,18 @@ export default function Landing() {
   // If user is authenticated, show loading or return null
   if (isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-cyan-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-[#021024] via-[#052659] to-[#26425A] flex items-center justify-center">
         <div className="text-white text-xl">Redirecting to dashboard...</div>
       </div>
     );
   }
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-cyan-900 relative overflow-hidden">
-      {/* Animated background elements */}
+    <div className="min-h-screen bg-gradient-to-br from-[#021024] via-[#052659] to-[#26425A] relative overflow-hidden">
+      {/* Animated background elements - reduced opacity for matte look */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-cyan-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
-        <div className="absolute top-40 left-40 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-[#C38EB4] rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-[#B6ABCF] rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-2000"></div>
+        <div className="absolute top-40 left-40 w-80 h-80 bg-[#E1CBD7] rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-4000"></div>
       </div>
 
       {/* Main content */}
@@ -41,13 +41,13 @@ export default function Landing() {
           transition={{ duration: 0.5 }}
           className="flex justify-between items-center px-6 py-4 max-w-7xl mx-auto"
         >
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-white via-purple-200 to-cyan-200 bg-clip-text text-transparent">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-white via-[#E1CBD7] to-[#B6ABCF] bg-clip-text text-transparent">
             Focal AI
           </h1>
           <nav className="hidden md:flex space-x-6">
-            <a href="#features" className="text-purple-200 hover:text-white transition-colors">Features</a>
-            <a href="#how-it-works" className="text-purple-200 hover:text-white transition-colors">How It Works</a>
-            <a href="#get-started" className="text-purple-200 hover:text-white transition-colors">Get Started</a>
+            <a href="#features" className="text-[#E1CBD7] hover:text-white transition-colors">Features</a>
+            <a href="#how-it-works" className="text-[#E1CBD7] hover:text-white transition-colors">How It Works</a>
+            <a href="#get-started" className="text-[#E1CBD7] hover:text-white transition-colors">Get Started</a>
           </nav>
         </motion.header>
 
@@ -57,7 +57,7 @@ export default function Landing() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="text-5xl md:text-6xl font-extrabold bg-gradient-to-r from-white via-purple-200 to-cyan-200 bg-clip-text text-transparent mb-6"
+            className="text-5xl md:text-6xl font-extrabold bg-gradient-to-r from-white via-[#E1CBD7] to-[#B6ABCF] bg-clip-text text-transparent mb-6"
           >
             Transform Your Ideas with AI-Powered Refinement
           </motion.h2>
@@ -65,7 +65,7 @@ export default function Landing() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="text-lg text-purple-100 mb-8 max-w-3xl mx-auto"
+            className="text-lg text-[#E1CBD7] mb-8 max-w-3xl mx-auto"
           >
             Our multi-agent AI system simulates stakeholder debates to turn your product ideas into actionable, polished requirements. Fast, comprehensive, and always available.
           </motion.p>
@@ -77,7 +77,7 @@ export default function Landing() {
             <button
               onClick={login}
               disabled={isLoading}
-              className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-purple-500 to-cyan-500 text-white font-semibold rounded-xl hover:from-purple-600 hover:to-cyan-600 shadow-lg shadow-purple-500/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-[#C38EB4] to-[#B6ABCF] text-white font-semibold rounded-xl hover:from-[#B6ABCF] hover:to-[#C38EB4] shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <LogIn className="w-5 h-5 mr-2" />
               {isLoading ? 'Signing in...' : 'Sign in with Google'}
@@ -86,7 +86,7 @@ export default function Landing() {
         </section>
 
         {/* Features Section */}
-        <section id="features" className="py-16 px-6 bg-white/5 backdrop-blur-md border-t border-b border-white/10">
+        <section id="features" className="py-16 px-6 bg-[#021024]/50 border-t border-b border-[#26425A]">
           <div className="max-w-6xl mx-auto">
             <motion.h3
               initial={{ opacity: 0, y: 20 }}
@@ -120,11 +120,11 @@ export default function Landing() {
                   whileInView={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.2 }}
                   viewport={{ once: true }}
-                  className="bg-white/5 rounded-xl p-6 border border-white/10 hover:bg-white/10 transition-all duration-300"
+                  className="bg-[#052659]/30 rounded-xl p-6 border border-[#26425A] hover:bg-[#052659]/50 transition-all duration-300"
                 >
-                  <feature.icon className="w-10 h-10 text-purple-400 mb-4" />
+                  <feature.icon className="w-10 h-10 text-[#C38EB4] mb-4" />
                   <h4 className="text-xl font-semibold text-white mb-2">{feature.title}</h4>
-                  <p className="text-purple-200 text-sm">{feature.description}</p>
+                  <p className="text-[#E1CBD7] text-sm">{feature.description}</p>
                 </motion.div>
               ))}
             </div>
@@ -167,12 +167,12 @@ export default function Landing() {
                 viewport={{ once: true }}
                 className="flex items-start space-x-4"
               >
-                <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-cyan-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                <div className="w-12 h-12 bg-gradient-to-r from-[#C38EB4] to-[#B6ABCF] rounded-full flex items-center justify-center text-white font-bold text-lg">
                   {step.step}
                 </div>
                 <div>
                   <h4 className="text-xl font-semibold text-white">{step.title}</h4>
-                  <p className="text-purple-200 text-sm mt-2">{step.description}</p>
+                  <p className="text-[#E1CBD7] text-sm mt-2">{step.description}</p>
                 </div>
               </motion.div>
             ))}
@@ -180,7 +180,7 @@ export default function Landing() {
         </section>
 
         {/* Call to Action Section */}
-        <section id="get-started" className="py-20 px-6 text-center bg-white/5 backdrop-blur-md border-t border-white/10">
+        <section id="get-started" className="py-20 px-6 text-center bg-[#021024]/50 border-t border-[#26425A]">
           <motion.h3
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -195,7 +195,7 @@ export default function Landing() {
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
             viewport={{ once: true }}
-            className="text-purple-200 text-lg mb-8 max-w-2xl mx-auto"
+            className="text-[#E1CBD7] text-lg mb-8 max-w-2xl mx-auto"
           >
             Join thousands of innovators using Focal AI to turn their visions into reality.
           </motion.p>
@@ -208,7 +208,7 @@ export default function Landing() {
             <button
               onClick={login}
               disabled={isLoading}
-              className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-purple-500 to-cyan-500 text-white font-semibold rounded-xl hover:from-purple-600 hover:to-cyan-600 shadow-lg shadow-purple-500/30 transition-all duration-300 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-[#C38EB4] to-[#B6ABCF] text-white font-semibold rounded-xl hover:from-[#B6ABCF] hover:to-[#C38EB4] shadow-lg transition-all duration-300 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <LogIn className="w-6 h-6 mr-2" />
               {isLoading ? 'Signing in...' : 'Get Started with Google'}
@@ -217,7 +217,7 @@ export default function Landing() {
         </section>
 
         {/* Footer */}
-        <footer className="py-8 px-6 text-center text-purple-200 text-sm border-t border-white/10">
+        <footer className="py-8 px-6 text-center text-[#E1CBD7] text-sm border-t border-[#26425A]">
           <p>Powered by LangChain + Gemini AI • Built with Next.js & Tailwind CSS</p>
         </footer>
 

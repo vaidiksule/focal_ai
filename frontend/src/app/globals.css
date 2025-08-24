@@ -5,11 +5,27 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* 🎨 Custom Color Palette */
+  --color-primary: #C38EB4;
+  --color-secondary: #E1CBD7;
+  --color-accent: #B6ABCF;
+  --color-dark: #26425A;
+  --color-deep: #052659;
+  --color-blackish: #021024;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+
+  --color-primary: var(--color-primary);
+  --color-secondary: var(--color-secondary);
+  --color-accent: var(--color-accent);
+  --color-dark: var(--color-dark);
+  --color-deep: var(--color-deep);
+  --color-blackish: var(--color-blackish);
+
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', 'Monaco', 'Consolas', monospace;
 }

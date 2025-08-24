@@ -92,6 +92,8 @@ def refine_requirements(request):
         # Run requirement refinement
         result = agent_system.refine_requirements(idea_text)
         
+        print(f"🔍 Refinement result: {result}")
+        
         if result['success']:
             # Save debate log to MongoDB
             mongodb_service.save_debates(idea_id, result['debate_log'])
@@ -133,16 +135,205 @@ def refine_requirements(request):
             updated_user = mongodb_service.get_user_by_id(user['_id'])
             mongodb_service.close()
             
+            # Prepare response with fallback information
+            response_data = {
+                'success': True,
+                'idea_id': idea_id,
+                'refined_requirements': result['refined_requirements'],
+                'sections': sections,  # Add the parsed sections
+                'debate_log': result['debate_log'],
+                'user': updated_user
+            }
+            
+            # Add fallback information if used
+            if result.get('used_fallback', False):
+                response_data['fallback_used'] = True
+                response_data['fallback_message'] = 'Analysis completed using fallback responses due to API quota limitations. For more detailed AI-powered analysis, please try again later when quota resets.'
+                response_data['api_calls_made'] = result.get('api_calls_made', 0)
+            else:
+                response_data['fallback_used'] = False
+                response_data['api_calls_made'] = result.get('api_calls_made', 0)
+            
+            print(f"📤 Sending response: {response_data}")
+            return JsonResponse(response_data)
+        else:
+            # Refund credits if requirement generation failed
+            mongodb_service.add_credits(user['_id'], 2, 'Credit refund - requirement generation failed')
+            mongodb_service.close()
+            
             return JsonResponse({
+                'success': False,
+                'error': result.get('error', 'Unknown error occurred')
+            }, status=500)
+            
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@require_auth
+def refine_requirements_with_feedback(request):
+    """API endpoint to refine requirements based on user feedback"""
+    try:
+        data = json.loads(request.body)
+        idea_id = data.get('idea_id', '').strip()
+        user_feedback = data.get('feedback', '').strip()
+        
+        if not idea_id:
+            return JsonResponse({
+                'success': False,
+                'error': 'Idea ID is required'
+            }, status=400)
+        
+        if not user_feedback:
+            return JsonResponse({
+                'success': False,
+                'error': 'User feedback is required'
+            }, status=400)
+        
+        # Get authenticated user
+        user = get_user_from_request(request)
+        if not user:
+            return JsonResponse({
+                'success': False,
+                'error': 'User authentication required'
+            }, status=401)
+        
+        # Check if user has sufficient credits (1 credit for feedback iteration)
+        mongodb_service = MongoDBService()
+        current_credits = mongodb_service.get_user_credits(user['_id'])
+        
+        if current_credits < 1:
+            mongodb_service.close()
+            return JsonResponse({
+                'success': False,
+                'error': f'Insufficient credits. Required: 1, Available: {current_credits}'
+            }, status=402)
+        
+        # Get the original idea and previous debate
+        idea_data = mongodb_service.get_idea_with_iterations(idea_id)
+        if not idea_data:
+            mongodb_service.close()
+            return JsonResponse({
+                'success': False,
+                'error': 'Idea not found'
+            }, status=404)
+        
+        # Check if user owns this idea
+        if idea_data['idea']['user_id'] != user['_id']:
+            mongodb_service.close()
+            return JsonResponse({
+                'success': False,
+                'error': 'Access denied'
+            }, status=403)
+        
+        # Deduct 1 credit for feedback iteration
+        success, message = mongodb_service.deduct_credits(user['_id'], 1, 'Feedback-based requirement refinement')
+        if not success:
+            mongodb_service.close()
+            return JsonResponse({
+                'success': False,
+                'error': message
+            }, status=402)
+        
+        # Get the original idea text
+        original_idea = idea_data['idea']['description']
+        
+        # Get previous debate log
+        previous_debate_log = []
+        for round_num, debates in idea_data['debate_rounds'].items():
+            for debate in debates:
+                previous_debate_log.append({
+                    'agent': debate['agent'],
+                    'response': debate['message'],
+                    'round': round_num
+                })
+        
+        # Initialize services
+        agent_system = MultiAgentSystem()
+        
+        # Run feedback-based refinement
+        result = agent_system.refine_requirements_with_feedback(
+            original_idea, 
+            previous_debate_log, 
+            user_feedback
+        )
+        
+        if result['success']:
+            # Save new debate log
+            mongodb_service.save_debates(idea_id, result['debate_log'])
+            
+            # Parse refined requirements to extract sections
+            refined_text = result['refined_requirements']
+            
+            # Simple parsing - look for section headers
+            sections = {
+                'refined_requirements': '',
+                'trade_offs': '',
+                'next_steps': ''
+            }
+            
+            # Try to parse the sections
+            lines = refined_text.split('\n')
+            current_section = None
+            
+            for line in lines:
+                line = line.strip()
+                if 'REFINED REQUIREMENTS' in line.upper():
+                    current_section = 'refined_requirements'
+                elif 'TRADE-OFFS' in line.upper() or 'TRADE OFFS' in line.upper():
+                    current_section = 'trade_offs'
+                elif 'NEXT STEPS' in line.upper():
+                    current_section = 'next_steps'
+                elif current_section and line:
+                    sections[current_section] += line + '\n'
+            
+            # Save feedback iteration to MongoDB
+            iteration_data = {
+                'user_feedback': user_feedback,
+                'refined_requirements': sections['refined_requirements'].strip(),
+                'trade_offs': sections['trade_offs'].strip(),
+                'next_steps': sections['next_steps'].strip(),
+                'iteration_number': len(idea_data['requirements_iterations']) + 1
+            }
+            mongodb_service.save_feedback_iteration(idea_id, iteration_data)
+            
+            # Get updated user data
+            updated_user = mongodb_service.get_user_by_id(user['_id'])
+            mongodb_service.close()
+            
+            # Prepare response with fallback information
+            response_data = {
                 'success': True,
                 'idea_id': idea_id,
                 'refined_requirements': result['refined_requirements'],
                 'debate_log': result['debate_log'],
+                'sections': sections,
                 'user': updated_user
-            })
+            }
+            
+            # Add fallback information if used
+            if result.get('used_fallback', False):
+                response_data['fallback_used'] = True
+                response_data['fallback_message'] = 'Analysis completed using fallback responses due to API quota limitations. For more detailed AI-powered analysis, please try again later when quota resets.'
+                response_data['api_calls_made'] = result.get('api_calls_made', 0)
+            else:
+                response_data['fallback_used'] = False
+                response_data['api_calls_made'] = result.get('api_calls_made', 0)
+            
+            return JsonResponse(response_data)
         else:
-            # Refund credits if requirement generation failed
-            mongodb_service.add_credits(user['_id'], 2, 'Credit refund - requirement generation failed')
+            # Refund credits if refinement failed
+            mongodb_service.add_credits(user['_id'], 1, 'Credit refund - feedback refinement failed')
             mongodb_service.close()
             
             return JsonResponse({

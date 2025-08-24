@@ -9,6 +9,7 @@ urlpatterns = [
     
     # Main functionality
     path('refine/', views.refine_requirements, name='refine_requirements'),
+    path('refine-feedback/', views.refine_requirements_with_feedback, name='refine_requirements_with_feedback'),
     path('history/', views.get_history, name='get_history'),
     path('idea/<int:idea_id>/', views.get_idea_details, name='get_idea_details'),
     

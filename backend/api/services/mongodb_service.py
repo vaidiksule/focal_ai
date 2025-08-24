@@ -43,10 +43,7 @@ class MongoDBService:
             # Create indexes for better performance
             self._create_indexes()
             
-            print(f"✅ MongoDB connected successfully to {self.db_name}")
-            
         except Exception as e:
-            print(f"❌ MongoDB connection failed: {str(e)}")
             raise Exception(f"Failed to connect to MongoDB: {str(e)}")
     
     def _create_indexes(self):
@@ -71,8 +68,6 @@ class MongoDBService:
             # Transaction indexes
             self.credit_transactions_collection.create_index("user_id")
             self.credit_transactions_collection.create_index("created_at")
-            
-            print("✅ Database indexes created successfully")
             
         except Exception as e:
             print(f"⚠️ Warning: Failed to create some indexes: {str(e)}")
@@ -110,6 +105,13 @@ class MongoDBService:
         requirements_data['idea_id'] = idea_id
         requirements_data['created_at'] = datetime.utcnow()
         result = self.requirements_collection.insert_one(requirements_data)
+        return str(result.inserted_id)
+    
+    def save_feedback_iteration(self, idea_id, iteration_data):
+        """Save a feedback iteration with user feedback and new requirements"""
+        iteration_data['idea_id'] = idea_id
+        iteration_data['created_at'] = datetime.utcnow()
+        result = self.requirements_collection.insert_one(iteration_data)
         return str(result.inserted_id)
     
     def get_idea_history(self, limit=10):
@@ -180,6 +182,39 @@ class MongoDBService:
             'requirement': requirement
         }
     
+    def get_idea_with_iterations(self, idea_id):
+        """Get idea with all its requirement iterations"""
+        from bson import ObjectId
+        
+        # Get idea
+        idea = self.ideas_collection.find_one({'_id': ObjectId(idea_id)})
+        if not idea:
+            return None
+        
+        # Get all requirement iterations
+        requirements = list(self.requirements_collection.find({'idea_id': idea_id}).sort('created_at', 1))
+        
+        # Get debates
+        debates = list(self.debates_collection.find({'idea_id': idea_id}).sort([('round_number', 1), ('timestamp', 1)]))
+        
+        # Organize debates by round
+        debate_rounds = {}
+        for debate in debates:
+            round_num = debate['round_number']
+            if round_num not in debate_rounds:
+                debate_rounds[round_num] = []
+            debate_rounds[round_num].append({
+                'agent': debate['agent_name'],
+                'message': debate['message'],
+                'timestamp': debate['timestamp'].isoformat()
+            })
+        
+        return {
+            'idea': idea,
+            'requirements_iterations': requirements,
+            'debate_rounds': debate_rounds
+        }
+    
     # User Management Methods
     def create_user(self, user_data):
         """Create a new user with initial 10 credits"""
@@ -194,7 +229,7 @@ class MongoDBService:
                 'is_active': True
             }
             
-            print(f"🔧 Creating user: {user_data['email']}")
+            # print(f"🔧 Creating user: {user_data['email']}")
             result = self.users_collection.insert_one(user_doc)
             user_id = str(result.inserted_id)
             
@@ -205,12 +240,10 @@ class MongoDBService:
                 amount=10,
                 description='Initial credits upon account creation'
             )
-            
-            print(f"✅ User created successfully with ID: {user_id}")
             return user_id
             
         except Exception as e:
-            print(f"❌ Error creating user: {str(e)}")
+            # print(f"❌ Error creating user: {str(e)}")
             raise e
     
     def get_user_by_email(self, email):
@@ -219,7 +252,6 @@ class MongoDBService:
             user = self.users_collection.find_one({'email': email})
             if user:
                 user['_id'] = str(user['_id'])
-                print(f"✅ User found: {email}")
             else:
                 print(f"ℹ️ User not found: {email}")
             return user
@@ -339,7 +371,7 @@ class MongoDBService:
             }
             
             self.credit_transactions_collection.insert_one(transaction_doc)
-            print(f"✅ Credit transaction logged: {transaction_type} {amount} credits for user {user_id}")
+            # print(f"✅ Credit transaction logged: {transaction_type} {amount} credits for user {user_id}")
             
         except Exception as e:
             print(f"❌ Error logging credit transaction: {str(e)}")
@@ -363,6 +395,6 @@ class MongoDBService:
         """Close MongoDB connection"""
         try:
             self.client.close()
-            print("🔌 MongoDB connection closed")
+            # print("🔌 MongoDB connection closed")
         except:
             pass

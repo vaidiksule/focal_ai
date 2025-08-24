@@ -86,12 +86,12 @@ WSGI_APPLICATION = 'focalai_backend.wsgi.application'
 
 # We're using MongoDB directly via PyMongo, not Django's ORM
 # This is a custom setup for our MongoDB service
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
 
 # MongoDB Configuration
 MONGODB_URI = os.getenv('MONGODB_URI', 'mongodb://localhost:27017/')
