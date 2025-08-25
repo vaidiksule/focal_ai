@@ -10,6 +10,54 @@ from .auth_middleware import require_auth, get_user_from_request
 from .user_views import get_user_profile, deduct_credits, get_user_transactions
 
 
+def _parse_prd_sections(prd_text):
+    """Parse PRD content into structured sections"""
+    sections = {
+        'overview': '',
+        'problem_statement': '',
+        'debate_summary': '',
+        'objectives': '',
+        'scope': '',
+        'requirements': '',
+        'user_stories': '',
+        'trade_offs_decisions': '',
+        'next_steps': '',
+        'success_metrics': ''
+    }
+    
+    lines = prd_text.split('\n')
+    current_section = None
+    
+    for line in lines:
+        line = line.strip()
+        
+        # Check for section headers
+        if '1. OVERVIEW' in line.upper():
+            current_section = 'overview'
+        elif '2. PROBLEM STATEMENT' in line.upper():
+            current_section = 'problem_statement'
+        elif '3. DEBATE SUMMARY' in line.upper():
+            current_section = 'debate_summary'
+        elif '4. OBJECTIVES' in line.upper():
+            current_section = 'objectives'
+        elif '5. SCOPE' in line.upper():
+            current_section = 'scope'
+        elif '6. REQUIREMENTS' in line.upper():
+            current_section = 'requirements'
+        elif '7. USER STORIES' in line.upper():
+            current_section = 'user_stories'
+        elif '8. TRADE-OFFS' in line.upper() or '8. TRADE OFFS' in line.upper():
+            current_section = 'trade_offs_decisions'
+        elif '9. NEXT STEPS' in line.upper():
+            current_section = 'next_steps'
+        elif '10. SUCCESS METRICS' in line.upper():
+            current_section = 'success_metrics'
+        elif current_section and line:
+            sections[current_section] += line + '\n'
+    
+    return sections
+
+
 @csrf_exempt
 @require_http_methods(["GET"])
 def test_connection(request):
@@ -98,36 +146,16 @@ def refine_requirements(request):
             # Save debate log to MongoDB
             mongodb_service.save_debates(idea_id, result['debate_log'])
             
-            # Parse refined requirements to extract sections
-            refined_text = result['refined_requirements']
+            # Parse PRD content to extract sections
+            prd_text = result['prd_content']
             
-            # Simple parsing - look for section headers
-            sections = {
-                'refined_requirements': '',
-                'trade_offs': '',
-                'next_steps': ''
-            }
+            # Parse the PRD sections
+            sections = _parse_prd_sections(prd_text)
             
-            # Try to parse the sections
-            lines = refined_text.split('\n')
-            current_section = None
-            
-            for line in lines:
-                line = line.strip()
-                if 'REFINED REQUIREMENTS' in line.upper():
-                    current_section = 'refined_requirements'
-                elif 'TRADE-OFFS' in line.upper() or 'TRADE OFFS' in line.upper():
-                    current_section = 'trade_offs'
-                elif 'NEXT STEPS' in line.upper():
-                    current_section = 'next_steps'
-                elif current_section and line:
-                    sections[current_section] += line + '\n'
-            
-            # Save requirements to MongoDB
+            # Save PRD to MongoDB
             requirements_data = {
-                'refined_requirements': sections['refined_requirements'].strip(),
-                'trade_offs': sections['trade_offs'].strip(),
-                'next_steps': sections['next_steps'].strip()
+                'prd_content': prd_text,
+                'sections': sections
             }
             mongodb_service.save_requirements(idea_id, requirements_data)
             
@@ -139,8 +167,8 @@ def refine_requirements(request):
             response_data = {
                 'success': True,
                 'idea_id': idea_id,
-                'refined_requirements': result['refined_requirements'],
-                'sections': sections,  # Add the parsed sections
+                'prd_content': result['prd_content'],
+                'sections': sections,
                 'debate_log': result['debate_log'],
                 'user': updated_user
             }
@@ -272,37 +300,17 @@ def refine_requirements_with_feedback(request):
             # Save new debate log
             mongodb_service.save_debates(idea_id, result['debate_log'])
             
-            # Parse refined requirements to extract sections
-            refined_text = result['refined_requirements']
+            # Parse PRD content to extract sections
+            prd_text = result['prd_content']
             
-            # Simple parsing - look for section headers
-            sections = {
-                'refined_requirements': '',
-                'trade_offs': '',
-                'next_steps': ''
-            }
-            
-            # Try to parse the sections
-            lines = refined_text.split('\n')
-            current_section = None
-            
-            for line in lines:
-                line = line.strip()
-                if 'REFINED REQUIREMENTS' in line.upper():
-                    current_section = 'refined_requirements'
-                elif 'TRADE-OFFS' in line.upper() or 'TRADE OFFS' in line.upper():
-                    current_section = 'trade_offs'
-                elif 'NEXT STEPS' in line.upper():
-                    current_section = 'next_steps'
-                elif current_section and line:
-                    sections[current_section] += line + '\n'
+            # Parse the PRD sections
+            sections = _parse_prd_sections(prd_text)
             
             # Save feedback iteration to MongoDB
             iteration_data = {
                 'user_feedback': user_feedback,
-                'refined_requirements': sections['refined_requirements'].strip(),
-                'trade_offs': sections['trade_offs'].strip(),
-                'next_steps': sections['next_steps'].strip(),
+                'prd_content': prd_text,
+                'sections': sections,
                 'iteration_number': len(idea_data['requirements_iterations']) + 1
             }
             mongodb_service.save_feedback_iteration(idea_id, iteration_data)
@@ -315,7 +323,7 @@ def refine_requirements_with_feedback(request):
             response_data = {
                 'success': True,
                 'idea_id': idea_id,
-                'refined_requirements': result['refined_requirements'],
+                'prd_content': result['prd_content'],
                 'debate_log': result['debate_log'],
                 'sections': sections,
                 'user': updated_user
@@ -405,6 +413,214 @@ def get_idea_details(request, idea_id):
             'requirement': details['requirement']
         })
         
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+# Chat Session Management Endpoints
+@csrf_exempt
+@require_http_methods(["POST"])
+@require_auth
+def create_chat_session(request):
+    """Create a new chat session"""
+    try:
+        user = get_user_from_request(request)
+        data = json.loads(request.body)
+        
+        title = data.get('title', 'New Chat')
+        idea_summary = data.get('idea_summary', '')
+        
+        # Create session in MongoDB
+        mongodb_service = MongoDBService()
+        session_id = mongodb_service.create_chat_session(
+            user_id=user['email'],
+            title=title,
+            idea_summary=idea_summary
+        )
+        
+        if session_id:
+            return JsonResponse({
+                'success': True,
+                'session_id': session_id,
+                'message': 'Chat session created successfully'
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': 'Failed to create chat session'
+            }, status=500)
+            
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+@require_auth
+def get_chat_sessions(request):
+    """Get all chat sessions for the authenticated user"""
+    try:
+        user = get_user_from_request(request)
+        
+        # Get sessions from MongoDB
+        mongodb_service = MongoDBService()
+        sessions = mongodb_service.get_user_chat_sessions(user['email'])
+        
+        return JsonResponse({
+            'success': True,
+            'sessions': sessions
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+@require_auth
+def get_chat_session(request, session_id):
+    """Get a specific chat session with its messages"""
+    try:
+        user = get_user_from_request(request)
+        
+        # Get session and messages from MongoDB
+        mongodb_service = MongoDBService()
+        session = mongodb_service.get_chat_session(session_id)
+        
+        if not session:
+            return JsonResponse({
+                'success': False,
+                'error': 'Chat session not found'
+            }, status=404)
+        
+        # Verify user owns this session
+        if session['user_id'] != user['email']:
+            return JsonResponse({
+                'success': False,
+                'error': 'Access denied'
+            }, status=403)
+        
+        # Get messages for this session
+        messages = mongodb_service.get_chat_messages(session_id)
+        
+        return JsonResponse({
+            'success': True,
+            'session': session,
+            'messages': messages
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["PUT"])
+@require_auth
+def update_chat_session(request, session_id):
+    """Update a chat session (title, status, etc.)"""
+    try:
+        user = get_user_from_request(request)
+        data = json.loads(request.body)
+        
+        # Verify user owns this session
+        mongodb_service = MongoDBService()
+        session = mongodb_service.get_chat_session(session_id)
+        
+        if not session:
+            return JsonResponse({
+                'success': False,
+                'error': 'Chat session not found'
+            }, status=404)
+        
+        if session['user_id'] != user['email']:
+            return JsonResponse({
+                'success': False,
+                'error': 'Access denied'
+            }, status=403)
+        
+        # Update session
+        updates = {}
+        if 'title' in data:
+            updates['title'] = data['title']
+        if 'status' in data:
+            updates['status'] = data['status']
+        if 'idea_summary' in data:
+            updates['idea_summary'] = data['idea_summary']
+        
+        if updates:
+            success = mongodb_service.update_chat_session(session_id, updates)
+            if success:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Chat session updated successfully'
+                })
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Failed to update chat session'
+                }, status=500)
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': 'No valid updates provided'
+            }, status=400)
+            
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["DELETE"])
+@require_auth
+def delete_chat_session(request, session_id):
+    """Delete a chat session and all its messages"""
+    try:
+        user = get_user_from_request(request)
+        
+        # Verify user owns this session
+        mongodb_service = MongoDBService()
+        session = mongodb_service.get_chat_session(session_id)
+        
+        if not session:
+            return JsonResponse({
+                'success': False,
+                'error': 'Chat session not found'
+            }, status=404)
+        
+        if session['user_id'] != user['email']:
+            return JsonResponse({
+                'success': False,
+                'error': 'Access denied'
+            }, status=403)
+        
+        # Delete session
+        success = mongodb_service.delete_chat_session(session_id)
+        if success:
+            return JsonResponse({
+                'success': True,
+                'message': 'Chat session deleted successfully'
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': 'Failed to delete chat session'
+            }, status=500)
+            
     except Exception as e:
         return JsonResponse({
             'success': False,

@@ -39,6 +39,8 @@ class MongoDBService:
             self.requirements_collection = self.db.requirements
             self.users_collection = self.db.users
             self.credit_transactions_collection = self.db.credit_transactions
+            self.chat_sessions_collection = self.db.chat_sessions
+            self.chat_messages_collection = self.db.chat_messages
             
             # Create indexes for better performance
             self._create_indexes()
@@ -68,6 +70,16 @@ class MongoDBService:
             # Transaction indexes
             self.credit_transactions_collection.create_index("user_id")
             self.credit_transactions_collection.create_index("created_at")
+            
+            # Chat session indexes
+            self.chat_sessions_collection.create_index("user_id")
+            self.chat_sessions_collection.create_index("created_at")
+            self.chat_sessions_collection.create_index("status")
+            
+            # Chat message indexes
+            self.chat_messages_collection.create_index("session_id")
+            self.chat_messages_collection.create_index("round_number")
+            self.chat_messages_collection.create_index("timestamp")
             
         except Exception as e:
             print(f"⚠️ Warning: Failed to create some indexes: {str(e)}")
@@ -390,6 +402,130 @@ class MongoDBService:
             return transactions
         except:
             return []
+    
+    # Chat Session Management Methods
+    def create_chat_session(self, user_id, title="New Chat", idea_summary=""):
+        """Create a new chat session"""
+        try:
+            session_data = {
+                'user_id': user_id,
+                'title': title,
+                'idea_summary': idea_summary,
+                'status': 'active',
+                'created_at': datetime.utcnow(),
+                'updated_at': datetime.utcnow()
+            }
+            result = self.chat_sessions_collection.insert_one(session_data)
+            return str(result.inserted_id)
+        except Exception as e:
+            print(f"Error creating chat session: {str(e)}")
+            return None
+
+    def get_user_chat_sessions(self, user_id, limit=50):
+        """Get all chat sessions for a user"""
+        try:
+            sessions = list(self.chat_sessions_collection.find(
+                {'user_id': user_id},
+                {'_id': 1, 'title': 1, 'idea_summary': 1, 'status': 1, 'created_at': 1, 'updated_at': 1}
+            ).sort('updated_at', -1).limit(limit))
+            
+            # Convert ObjectId to string for JSON serialization
+            for session in sessions:
+                session['_id'] = str(session['_id'])
+                session['created_at'] = session['created_at'].isoformat()
+                session['updated_at'] = session['updated_at'].isoformat()
+            
+            return sessions
+        except Exception as e:
+            print(f"Error getting user chat sessions: {str(e)}")
+            return []
+
+    def get_chat_session(self, session_id):
+        """Get a specific chat session by ID"""
+        try:
+            from bson import ObjectId
+            session = self.chat_sessions_collection.find_one({'_id': ObjectId(session_id)})
+            if session:
+                session['_id'] = str(session['_id'])
+                session['created_at'] = session['created_at'].isoformat()
+                session['updated_at'] = session['updated_at'].isoformat()
+            return session
+        except Exception as e:
+            print(f"Error getting chat session: {str(e)}")
+            return None
+
+    def update_chat_session(self, session_id, updates):
+        """Update a chat session"""
+        try:
+            from bson import ObjectId
+            updates['updated_at'] = datetime.utcnow()
+            result = self.chat_sessions_collection.update_one(
+                {'_id': ObjectId(session_id)},
+                {'$set': updates}
+            )
+            return result.modified_count > 0
+        except Exception as e:
+            print(f"Error updating chat session: {str(e)}")
+            return False
+
+    def delete_chat_session(self, session_id):
+        """Delete a chat session and all its messages"""
+        try:
+            from bson import ObjectId
+            # Delete all messages first
+            self.chat_messages_collection.delete_many({'session_id': session_id})
+            # Delete the session
+            result = self.chat_sessions_collection.delete_one({'_id': ObjectId(session_id)})
+            return result.deleted_count > 0
+        except Exception as e:
+            print(f"Error deleting chat session: {str(e)}")
+            return False
+
+    def add_chat_message(self, session_id, role, content, round_number=1):
+        """Add a new message to a chat session"""
+        try:
+            message_data = {
+                'session_id': session_id,
+                'role': role,
+                'content': content,
+                'round_number': round_number,
+                'timestamp': datetime.utcnow()
+            }
+            result = self.chat_messages_collection.insert_one(message_data)
+            
+            # Update session's updated_at timestamp
+            self.update_chat_session(session_id, {})
+            
+            return str(result.inserted_id)
+        except Exception as e:
+            print(f"Error adding chat message: {str(e)}")
+            return None
+
+    def get_chat_messages(self, session_id, limit=100):
+        """Get all messages for a chat session"""
+        try:
+            messages = list(self.chat_messages_collection.find(
+                {'session_id': session_id},
+                {'_id': 1, 'role': 1, 'content': 1, 'round_number': 1, 'timestamp': 1}
+            ).sort('timestamp', 1).limit(limit))
+            
+            # Convert ObjectId to string for JSON serialization
+            for message in messages:
+                message['_id'] = str(message['_id'])
+                message['timestamp'] = message['timestamp'].isoformat()
+            
+            return messages
+        except Exception as e:
+            print(f"Error getting chat messages: {str(e)}")
+            return []
+
+    def get_session_message_count(self, session_id):
+        """Get the count of messages in a session"""
+        try:
+            return self.chat_messages_collection.count_documents({'session_id': session_id})
+        except Exception as e:
+            print(f"Error getting session message count: {str(e)}")
+            return 0
     
     def close(self):
         """Close MongoDB connection"""

@@ -3,40 +3,29 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { LogOut, User, Coins, AlertTriangle } from 'lucide-react';
+import Image from 'next/image';
 import InputBox from '../../components/InputBox';
 import ResultsDisplay from '../../components/ResultsDisplay';
 import LoadingAnimation from '../../components/LoadingAnimation';
+import ChatSidebar from '../../components/ChatSidebar';
 import { useAuth } from '../../hooks/useAuth';
 import { useUser } from '../../contexts/UserContext';
-
-interface RefinementResult {
-  success: boolean;
-  idea_id?: string;
-  refined_requirements?: string;
-  sections?: {
-    refined_requirements: string;
-    trade_offs: string;
-    next_steps: string;
-  };
-  debate_log?: Array<{
-    agent: string;
-    response: string;
-    round: number;
-    fallback?: boolean;
-  }>;
-  error?: string;
-  fallback_used?: boolean;
-  fallback_message?: string;
-  api_calls_made?: number;
-}
+import { RefinementResult, FeedbackIteration, ChatSession, ChatMessage } from '../../types/types';
 
 export default function Dashboard() {
   const { session, isAuthenticated, isLoading, logout, redirectToHome } = useAuth();
-  const { user, updateUser, forceRefreshUser, refreshing, error: userError } = useUser();
+  const { user, updateUser, forceRefreshUser, refreshing } = useUser();
   const [idea, setIdea] = useState('');
   const [result, setResult] = useState<RefinementResult | null>(null);
+  const [iterations, setIterations] = useState<FeedbackIteration[]>([]);
   const [loading, setLoading] = useState(false);
   const [feedbackLoading, setFeedbackLoading] = useState(false);
+  
+  // Chat session management
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [currentSession, setCurrentSession] = useState<ChatSession | null>(null);
+  const [sessionMessages, setSessionMessages] = useState<ChatMessage[]>([]);
 
   // Redirect to home if not authenticated
   useEffect(() => {
@@ -44,6 +33,77 @@ export default function Dashboard() {
       redirectToHome();
     }
   }, [isAuthenticated, isLoading, redirectToHome]);
+
+  // Session management functions
+  const handleNewChat = () => {
+    setCurrentSessionId(null);
+    setCurrentSession(null);
+    setSessionMessages([]);
+    setResult(null);
+    setIterations([]);
+    setIdea('');
+    setSidebarOpen(false);
+  };
+
+  const handleSessionSelect = async (sessionId: string) => {
+    if (!sessionId) {
+      handleNewChat();
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:8000/api/chat/sessions/${sessionId}/`, {
+        headers: {
+          'Authorization': `Bearer ${session?.idToken}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setCurrentSessionId(sessionId);
+          setCurrentSession(data.session);
+          setSessionMessages(data.messages);
+          
+          // Try to reconstruct the result from session data
+          if (data.session.idea_summary) {
+            setIdea(data.session.idea_summary);
+          }
+          
+          setSidebarOpen(false);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading session:', error);
+    }
+  };
+
+  const createChatSession = async (ideaText: string) => {
+    try {
+      const response = await fetch('http://localhost:8000/api/chat/sessions/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.idToken}`,
+        },
+        body: JSON.stringify({
+          title: ideaText.substring(0, 50) + (ideaText.length > 50 ? '...' : ''),
+          idea_summary: ideaText
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setCurrentSessionId(data.session_id);
+          return data.session_id;
+        }
+      }
+    } catch (error) {
+      console.error('Error creating chat session:', error);
+    }
+    return null;
+  };
 
   // Show loading while checking authentication
   if (isLoading) {
@@ -74,8 +134,15 @@ export default function Dashboard() {
 
     setLoading(true);
     setResult(null);
+    setIterations([]); // Clear previous iterations for new idea
     
     try {
+      // Create or get chat session
+      let sessionId = currentSessionId;
+      if (!sessionId) {
+        sessionId = await createChatSession(ideaText);
+      }
+      
       const response = await fetch('http://localhost:8000/api/refine/', {
         method: 'POST',
         headers: {
@@ -158,9 +225,17 @@ export default function Dashboard() {
           console.log('User data updated after feedback:', data.user);
         }
         
-        // Update the result with new data
-        setResult(data);
-        console.log('Requirements refined with feedback:', data);
+        // Create a new iteration instead of replacing the result
+        const newIteration: FeedbackIteration = {
+          id: `iteration-${Date.now()}`,
+          feedback: feedback,
+          result: data,
+          timestamp: new Date()
+        };
+        
+        // Add the new iteration to the list
+        setIterations(prev => [...prev, newIteration]);
+        console.log('New iteration created:', newIteration);
       } else {
         alert(data.error || 'Failed to refine requirements with feedback.');
       }
@@ -173,173 +248,151 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#021024] via-[#052659] to-[#26425A] relative overflow-hidden">
-      {/* Animated background elements - reduced opacity for matte look */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-[#C38EB4] rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-[#B6ABCF] rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-2000"></div>
-        <div className="absolute top-40 left-40 w-80 h-80 bg-[#E1CBD7] rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-4000"></div>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-[#021024] via-[#052659] to-[#26425A]">
+      {/* Chat Sidebar */}
+      <ChatSidebar
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
+        currentSessionId={currentSessionId}
+        onSessionSelect={handleSessionSelect}
+        onNewChat={handleNewChat}
+        sessionToken={session?.idToken || null}
+      />
 
-      {/* Main content */}
-      <div className="relative z-10 flex flex-col min-h-screen">
+      {/* Main Content */}
+      <div className={`transition-all duration-300 ${sidebarOpen ? 'ml-80' : 'ml-0'}`}>
         {/* Header */}
-        <motion.header 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex justify-between items-center py-8 px-6 max-w-7xl mx-auto"
-        >
-          <div className="text-center flex-1">
-            <h1 className="text-4xl md:text-6xl font-extrabold bg-gradient-to-r from-white via-[#E1CBD7] to-[#B6ABCF] bg-clip-text text-transparent mb-4 tracking-tight">
-              🧠 Focal AI
-            </h1>
-            <p className="text-[#E1CBD7] text-xl max-w-2xl mx-auto font-light leading-relaxed">
-              AI-powered requirement refinement through multi-agent stakeholder simulation
-            </p>
-          </div>
-          
-          {/* User Menu with Credits and Avatar */}
-          <div className="flex items-center space-x-4">
-            {/* Credits Display */}
-            <div className="flex items-center space-x-2 bg-[#052659]/30 rounded-xl px-4 py-2 border border-[#26425A]">
-              <Coins className="w-5 h-5 text-[#C38EB4]" />
-              <span className="text-white text-sm font-medium">
-                {user?.credits || 0} Credits
-              </span>
-              <button
-                onClick={forceRefreshUser}
-                disabled={refreshing}
-                className="ml-2 p-1 hover:bg-[#052659]/50 rounded transition-colors disabled:opacity-50"
-                title="Refresh credits"
-              >
-                {refreshing ? (
-                  <svg className="w-4 h-4 text-white animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                ) : (
-                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                )}
-              </button>
-            </div>
-            
-            {/* User Profile */}
-            <div className="flex items-center space-x-3 bg-[#052659]/30 rounded-xl px-4 py-2 border border-[#26425A]">
-              {user?.avatar ? (
-                <img 
-                  src={user.avatar} 
-                  alt={user.name || 'User'} 
-                  className="w-8 h-8 rounded-full object-cover"
-                />
-              ) : (
-                <div className="w-8 h-8 bg-gradient-to-r from-[#C38EB4] to-[#B6ABCF] rounded-full flex items-center justify-center">
-                  <User className="w-4 h-4 text-white" />
-                </div>
-              )}
-              <span className="text-white text-sm font-medium">
-                {user?.name || session?.user?.name || 'User'}
-              </span>
-            </div>
-            
-            {/* Logout Button */}
-            <button
-              onClick={logout}
-              className="flex items-center space-x-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 hover:text-red-200 px-4 py-2 rounded-xl border border-red-500/30 transition-all duration-300"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="text-sm font-medium">Logout</span>
-            </button>
-          </div>
-        </motion.header>
-
-        {/* Credits Warning */}
-        {user && user.credits < 2 && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mx-6 mb-6"
-          >
-            <div className="max-w-4xl mx-auto bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-4">
-              <div className="flex items-center space-x-3">
-                <AlertTriangle className="w-5 h-5 text-yellow-400" />
+        <div className="bg-gradient-to-r from-[#052659]/40 to-[#26425A]/40 backdrop-blur-sm border-b border-white/10">
+          <div className="max-w-7xl mx-auto px-6 py-4">
+            <div className="flex flex-col lg:flex-row justify-between items-center space-y-6 lg:space-y-0">
+              {/* Logo */}
+              <div className="flex items-center space-x-4">
+                {/* <div className="w-12 h-12 bg-gradient-to-r from-[#C38EB4] to-[#B6ABCF] rounded-xl flex items-center justify-center shadow-lg"> */}
+                  <Image
+                    src="/icon.svg"
+                    alt="Focal AI Logo"
+                    width={55}
+                    height={55}
+                    className="text-white"
+                  />
+                {/* </div> */}
                 <div>
-                  <p className="text-yellow-200 font-medium">Low Credits</p>
-                  <p className="text-yellow-300 text-sm">
-                    You have {user.credits} credits remaining. You need at least 2 credits to generate requirements.
-                  </p>
+                  <h1 className="text-2xl font-bold text-white">focal.ai</h1>
+                  <p className="text-[#E1CBD7] text-sm">AI-Powered Requirement Refinement</p>
                 </div>
               </div>
+            
+              {/* User Menu with Credits and Avatar - Right Aligned */}
+              <div className="flex items-center space-x-4">
+                {/* Credits Display */}
+                <div className="flex items-center space-x-3 bg-gradient-to-r from-[#052659]/40 to-[#26425A]/40 rounded-xl px-5 py-3 border border-[#26425A]/50 backdrop-blur-sm shadow-lg">
+                  <div className="flex items-center space-x-2">
+                    <Coins className="w-5 h-5 text-[#C38EB4]" />
+                    <span className="text-white text-sm font-semibold">
+                      {user?.credits || 0} Credits
+                    </span>
+                  </div>
+                  <button
+                    onClick={forceRefreshUser}
+                    disabled={refreshing}
+                    className="ml-3 p-2 hover:bg-[#052659]/60 rounded-lg transition-all duration-200 disabled:opacity-50 hover:scale-105"
+                    title="Refresh credits"
+                  >
+                    {refreshing ? (
+                      <svg className="w-4 h-4 text-white animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+                
+                {/* User Profile */}
+                <div className="flex items-center space-x-3 bg-gradient-to-r from-[#052659]/40 to-[#26425A]/40 rounded-xl px-5 py-3 border border-[#26425A]/50 backdrop-blur-sm shadow-lg">
+                  {user?.avatar ? (
+                    <Image
+                      src={user.avatar}
+                      alt={user.name || 'User'}
+                      width={36}
+                      height={36}
+                      className="rounded-full"
+                    />
+                  ) : (
+                    <div className="w-9 h-9 bg-gradient-to-r from-[#C38EB4] to-[#B6ABCF] rounded-full flex items-center justify-center border-2 border-[#C38EB4]/30">
+                      <User className="w-4 h-4 text-white" />
+                    </div>
+                  )}
+                  <div className="flex flex-col">
+                    <span className="text-white text-sm font-semibold">
+                      {user?.name || session?.user?.name || 'User'}
+                    </span>
+                    <span className="text-[#E1CBD7] text-xs opacity-80">
+                      {user?.email || session?.user?.email || 'user@example.com'}
+                    </span>
+                  </div>
+                </div>
+                
+                {/* Logout Button */}
+                <button
+                  onClick={logout}
+                  className="flex items-center space-x-2 bg-gradient-to-r from-red-500/20 to-red-600/20 hover:from-red-500/30 hover:to-red-600/30 text-red-300 hover:text-red-200 px-5 py-3 rounded-xl border border-red-500/40 transition-all duration-300 hover:scale-105 shadow-lg backdrop-blur-sm"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span className="text-sm font-medium">Logout</span>
+                </button>
+              </div>
             </div>
-          </motion.div>
-        )}
+          </div>
+        </div>
 
-        {/* Input box at top */}
-        <div className="px-6 pb-8">
-          <div className="max-w-4xl mx-auto">
-            <InputBox 
+        {/* Main Body Content */}
+        <div className="mt-8 max-w-7xl mx-auto px-6 pb-8">
+          {/* Input Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8"
+          >
+            <InputBox
               value={idea}
               onChange={setIdea}
               onSubmit={handleRefineRequirements}
               disabled={loading || !!(user && user.credits < 2)}
               credits={user?.credits}
             />
-          </div>
-        </div>
+          </motion.div>
 
-        {/* Results area */}
-        <div className="flex-1 px-6 pb-8">
-          <div className="max-w-4xl mx-auto">
-            <AnimatePresence mode="wait">
-              {loading && (
-                <motion.div
-                  key="loading"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  className="mb-6"
-                >
-                  <LoadingAnimation />
-                </motion.div>
-              )}
+          {/* Loading Animation */}
+          {loading && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="mb-8"
+            >
+              <LoadingAnimation />
+            </motion.div>
+          )}
 
-              {result && (
-                <motion.div
-                  key="results"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mb-6"
-                >
-                  <ResultsDisplay 
-                    result={result} 
-                    onFeedbackSubmit={handleFeedbackSubmit}
-                    isFeedbackLoading={feedbackLoading}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+          {/* Results Display */}
+          {result && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-8"
+            >
+              <ResultsDisplay
+                result={result}
+                onFeedbackSubmit={handleFeedbackSubmit}
+                isFeedbackLoading={feedbackLoading}
+                iterations={iterations}
+              />
+            </motion.div>
+          )}
         </div>
       </div>
-
-      {/* Custom animations */}
-      <style jsx>{`
-        @keyframes blob {
-          0% { transform: translate(0px, 0px) scale(1); }
-          33% { transform: translate(30px, -50px) scale(1.1); }
-          66% { transform: translate(-20px, 20px) scale(0.9); }
-          100% { transform: translate(0px, 0px) scale(1); }
-        }
-        .animate-blob {
-          animation: blob 7s infinite;
-        }
-        .animation-delay-2000 {
-          animation-delay: 2s;
-        }
-        .animation-delay-4000 {
-          animation-delay: 4s;
-        }
-      `}</style>
     </div>
   );
 }

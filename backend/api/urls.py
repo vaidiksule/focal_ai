@@ -17,4 +17,11 @@ urlpatterns = [
     path('users/profile/', user_views.get_user_profile, name='get_user_profile'),
     path('users/deduct-credits/', user_views.deduct_credits, name='deduct_credits'),
     path('users/transactions/', user_views.get_user_transactions, name='get_user_transactions'),
+    
+    # Chat Session Management URLs
+    path('chat/sessions/', views.create_chat_session, name='create_chat_session'),
+    path('chat/sessions/list/', views.get_chat_sessions, name='get_chat_sessions'),
+    path('chat/sessions/<str:session_id>/', views.get_chat_session, name='get_chat_session'),
+    path('chat/sessions/<str:session_id>/update/', views.update_chat_session, name='update_chat_session'),
+    path('chat/sessions/<str:session_id>/delete/', views.delete_chat_session, name='delete_chat_session'),
 ]

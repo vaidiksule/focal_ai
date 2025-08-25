@@ -1,0 +1,47 @@
+1. Overview
+
+Give an overview about the product, what it intends to do, and its purpose.
+
+2. Problem Statement
+
+What problem are we solving and how does it improve or facilitate the user’s life or workflow.
+
+3. Debate Summary (Agent Perspectives)
+
+Capture the perspectives of all key stakeholders (Business, Engineer, Designer, Customer, Product Manager). This section should summarize their concerns, priorities, and any conflicts, followed by the final consensus or decision.
+
+4. Objectives
+
+List the high-level goals of the product. These are guiding principles that describe what success looks like and how the product will deliver value to users and the business.
+
+5. Scope
+
+Define what will be delivered in this product version (in-scope) and what will not be delivered (out-of-scope). This ensures alignment and prevents scope creep.
+
+In-Scope: Features and functions that will be included.
+
+Out-of-Scope: Features, platforms, or use cases that will be explicitly excluded or deferred to later versions.
+
+6. Requirements
+
+Functional Requirements: Clearly defined features the product must have to work as intended (e.g., “system must allow users to…”)
+
+Non-Functional Requirements: Qualities the system must exhibit, such as performance, scalability, security, or usability standards.
+
+7. User Stories
+
+Describe the product from the end-user’s perspective using the format:
+“As a [role], I want [feature], so that [benefit].”
+This ensures features are directly tied to user needs.
+
+8. Trade-offs & Decisions
+
+Document any compromises made during discussions. For example, which features were deprioritized, what was postponed to a later version, and why those choices were made.
+
+9. Next Steps
+
+List concrete action items after the PRD is agreed upon. These could include development milestones, design deliverables, testing timelines, or launch preparations.
+
+10. Success Metrics
+
+Define how success will be measured. These are KPIs (Key Performance Indicators) or benchmarks that indicate whether the product achieved its goals (e.g., adoption rates, task completion time reduction, customer satisfaction scores).

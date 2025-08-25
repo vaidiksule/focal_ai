@@ -105,13 +105,13 @@ export default function InputBox({ value, onChange, onSubmit, disabled, credits 
           {hasInsufficientCredits ? (
             <div className="flex items-center justify-center space-x-2 text-red-300">
               <Coins className="w-4 h-4" />
-              <p className="text-sm font-medium">
-                You need at least 2 credits to generate requirements. Current balance: {credits} credits
+              <p className="text-gray-300 text-sm">
+                You need at least 2 credits to generate requirements. You&apos;ll receive 1 credit back if the process fails.
               </p>
             </div>
           ) : (
             <p className="text-purple-200/60 text-sm">
-              💡 Be specific about the problem you're solving, target audience, and key features
+              💡 Be specific about the problem you&apos;re solving, target audience, and key features
             </p>
           )}
         </motion.div>
