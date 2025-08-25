@@ -1,4 +1,4 @@
-import LogoIcon from "../assets/logo.svg"
+import Link from "next/link"
 import XSocial from "../assets/social-x.svg"
 import INstaSocial from "../assets/social-instagram.svg"
 import YTSocial from "../assets/social-youtube.svg"
@@ -10,9 +10,9 @@ export const Footer = () => {
         <div className="flex flex-col gap-y-8 lg:items-center lg:flex-row justify-between">
           {/* left or top div */}
           <div className="flex gap-x-5 items-center">
-            <a href="/" className="text-white font-inter text-xl font-semibold hover:opacity-80 transition-opacity duration-200">
+            <Link href="/" className="text-white font-inter text-xl font-semibold hover:opacity-80 transition-opacity duration-200">
               focal.ai
-            </a>
+            </Link>
             <div>
                              <p className="text-xs text-white/60">Made by Akshat Thakur, Veer Adyani, Shorya Jain, Vaidik Sule & Akshara Sharma</p>
             </div>

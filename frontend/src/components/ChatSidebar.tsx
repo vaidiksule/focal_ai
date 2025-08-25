@@ -47,7 +47,7 @@ export default function ChatSidebar({
   const fetchChatSessions = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:8000/api/chat/sessions/list/', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/chat/sessions/list/`, {
         headers: {
           'Authorization': `Bearer ${sessionToken}`,
         },
@@ -72,7 +72,7 @@ export default function ChatSidebar({
     }
 
     try {
-      const response = await fetch(`http://localhost:8000/api/chat/sessions/${sessionId}/delete/`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/chat/sessions/${sessionId}/delete/`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${sessionToken}`,
@@ -97,7 +97,7 @@ export default function ChatSidebar({
     if (!editTitle.trim()) return;
 
     try {
-      const response = await fetch(`http://localhost:8000/api/chat/sessions/${sessionId}/update/`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/chat/sessions/${sessionId}/update/`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

@@ -52,7 +52,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('http://localhost:8000/api/users/profile/', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/users/profile/`, {
         headers: {
           'Authorization': `Bearer ${session.idToken}`,
           'Content-Type': 'application/json',
@@ -82,7 +82,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     if (!user || !session?.idToken) return false;
     
     try {
-      const response = await fetch('http://localhost:8000/api/users/deduct-credits/', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/users/deduct-credits/`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.idToken}`,
@@ -125,7 +125,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     
     try {
       setRefreshing(true);
-      const response = await fetch('http://localhost:8000/api/users/profile/', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/users/profile/`, {
         headers: {
           'Authorization': `Bearer ${session.idToken}`,
           'Content-Type': 'application/json',

@@ -52,7 +52,7 @@ export default function Dashboard() {
     }
 
     try {
-      const response = await fetch(`http://localhost:8000/api/chat/sessions/${sessionId}/`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/chat/sessions/${sessionId}/`, {
         headers: {
           'Authorization': `Bearer ${session?.idToken}`,
         },
@@ -80,7 +80,7 @@ export default function Dashboard() {
 
   const createChatSession = async (ideaText: string) => {
     try {
-      const response = await fetch('http://localhost:8000/api/chat/sessions/', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/chat/sessions/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -107,7 +107,7 @@ export default function Dashboard() {
 
   const storeChatMessage = async (sessionId: string, role: string, content: string, roundNumber: number) => {
     try {
-      const response = await fetch('http://localhost:8000/api/chat/sessions/messages/', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/chat/sessions/messages/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -175,7 +175,7 @@ export default function Dashboard() {
         await storeChatMessage(sessionId, 'user', ideaText, 1);
       }
       
-      const response = await fetch('http://localhost:8000/api/refine/', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/refine/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -281,7 +281,7 @@ export default function Dashboard() {
     setFeedbackLoading(true);
     
     try {
-      const response = await fetch('http://localhost:8000/api/refine-feedback/', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/refine-feedback/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

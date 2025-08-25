@@ -7,7 +7,7 @@ import { Brain, Users, Zap, Target, Palette, TrendingUp, MessageSquare, CheckCir
 interface Agent {
   name: string;
   role: string;
-  icon: any;
+  icon: React.ComponentType<{ className?: string; size?: number }>;
   color: string;
   status: 'waiting' | 'thinking' | 'responding' | 'completed';
   progress: number;

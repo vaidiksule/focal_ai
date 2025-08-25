@@ -1,3 +1,4 @@
+import Link from "next/link"
 import MenuIcon from "../assets/icon-menu.svg"
 import { Button } from "../components/button"
 
@@ -23,9 +24,9 @@ export const Header = () => {
         <div className="flex justify-between items-center md:border rounded-lg border-white/15  md:py-2.5 md:px-5 max-w-4xl mx-auto relative ">
           <div className="hidden md:block absolute inset-0 backdrop-blur -z-10 "></div>
           <div>
-            <a href="/" className="text-white font-inter text-xl font-semibold hover:opacity-80 transition-opacity duration-200">
+            <Link href="/" className="text-white font-inter text-xl font-semibold hover:opacity-80 transition-opacity duration-200">
               focal.ai
-            </a>
+            </Link>
           </div>
           <div className="hidden md:block">
             <nav className="flex gap-8 text-sm ">

@@ -94,7 +94,7 @@ export const StatsComparison = () => {
       <div className="container max-w-7xl mx-auto px-6">
         <div className="text-center mb-16">
           <h2 className="text-5xl lg:text-7xl font-semibold tracking-tighter mb-6">
-            The Numbers Don't Lie
+            The Numbers Don&apos;t Lie
           </h2>
           <p className="text-white/70 max-w-3xl mx-auto text-lg md:text-xl">
             See how AI-powered decision making transforms your workflow from time-consuming meetings to instant insights
