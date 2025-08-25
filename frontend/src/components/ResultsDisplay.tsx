@@ -346,9 +346,9 @@ export default function ResultsDisplay({ result, onFeedbackSubmit, isFeedbackLoa
   return (
     <>
       {/* Main Results Container - Centered */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
         className="bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 overflow-hidden max-w-7xl mx-auto"
       >
         {/* Fallback Warning Banner */}
@@ -377,47 +377,47 @@ export default function ResultsDisplay({ result, onFeedbackSubmit, isFeedbackLoa
           </motion.div>
         )}
 
-        {/* Tab Navigation */}
-        <div className="border-b border-white/10">
-          <nav className="flex">
-            <button
-              onClick={() => setActiveTab('requirements')}
-              className={`flex-1 py-4 px-6 text-center font-medium transition-all duration-300 ${
-                activeTab === 'requirements'
-                  ? 'text-white bg-gradient-to-r from-purple-500/20 to-cyan-500/20 border-b-2 border-purple-400'
-                  : 'text-purple-200 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <Target className="w-5 h-5 inline mr-2" />
+      {/* Tab Navigation */}
+      <div className="border-b border-white/10">
+        <nav className="flex">
+          <button
+            onClick={() => setActiveTab('requirements')}
+            className={`flex-1 py-4 px-6 text-center font-medium transition-all duration-300 ${
+              activeTab === 'requirements'
+                ? 'text-white bg-gradient-to-r from-purple-500/20 to-cyan-500/20 border-b-2 border-purple-400'
+                : 'text-purple-200 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Target className="w-5 h-5 inline mr-2" />
               PRD Document
-            </button>
-            <button
-              onClick={() => setActiveTab('debate')}
-              className={`flex-1 py-4 px-6 text-center font-medium transition-all duration-300 ${
-                activeTab === 'debate'
-                  ? 'text-white bg-gradient-to-r from-purple-500/20 to-cyan-500/20 border-b-2 border-purple-400'
-                  : 'text-purple-200 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <Brain className="w-5 h-5 inline mr-2" />
-              AI Debate ({result.debate_log?.length || 0})
-            </button>
-          </nav>
-        </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('debate')}
+            className={`flex-1 py-4 px-6 text-center font-medium transition-all duration-300 ${
+              activeTab === 'debate'
+                ? 'text-white bg-gradient-to-r from-purple-500/20 to-cyan-500/20 border-b-2 border-purple-400'
+                : 'text-purple-200 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Brain className="w-5 h-5 inline mr-2" />
+            AI Debate ({result.debate_log?.length || 0})
+          </button>
+        </nav>
+      </div>
 
-        {/* Tab Content */}
-        <div className="p-6">
-          {activeTab === 'requirements' && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="space-y-8"
-            >
+      {/* Tab Content */}
+      <div className="p-6">
+        {activeTab === 'requirements' && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="space-y-8"
+          >
               {/* PRD Document */}
               {result.success && result.sections && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.3 }}
                   className="bg-white/5 rounded-xl p-8 border border-white/10 backdrop-blur-sm"
                 >
@@ -440,29 +440,29 @@ export default function ResultsDisplay({ result, onFeedbackSubmit, isFeedbackLoa
                       <span className="font-medium">Download PDF</span>
                     </button>
                   </div>
+              <motion.div 
+                className="flex flex-col items-center mb-6"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2 }}
+              >
                 <motion.div 
-                  className="flex flex-col items-center mb-6"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.2 }}
+                  className="w-12 h-12 rounded-xl bg-gradient-to-r from-purple-500 to-purple-600 flex items-center justify-center mr-4 shadow-lg"
+                  whileHover={{ scale: 1.1, rotate: 5 }}
+                  transition={{ duration: 0.2 }}
                 >
-                  <motion.div 
-                    className="w-12 h-12 rounded-xl bg-gradient-to-r from-purple-500 to-purple-600 flex items-center justify-center mr-4 shadow-lg"
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <Target className="w-6 h-6 text-white" />
-                  </motion.div>
-                    <h3 className="text-2xl font-bold text-white">Product Requirements Document (PRD)</h3>
+                  <Target className="w-6 h-6 text-white" />
                 </motion.div>
-                
-                <motion.div 
-                  className="bg-gradient-to-r from-purple-500/10 to-cyan-500/10 rounded-xl p-8 border border-purple-500/20 backdrop-blur-sm"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.3, duration: 0.5 }}
-                  whileHover={{ scale: 1.01 }}
-                >
+                    <h3 className="text-2xl font-bold text-white">Product Requirements Document (PRD)</h3>
+              </motion.div>
+              
+              <motion.div 
+                className="bg-gradient-to-r from-purple-500/10 to-cyan-500/10 rounded-xl p-8 border border-purple-500/20 backdrop-blur-sm"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.3, duration: 0.5 }}
+                whileHover={{ scale: 1.01 }}
+              >
                     {/* Overview Section */}
                     {sections.overview && (
                       <div className="mb-8">
@@ -530,7 +530,7 @@ export default function ResultsDisplay({ result, onFeedbackSubmit, isFeedbackLoa
                           className="text-yellow-100 leading-relaxed prose prose-invert max-w-none"
                           dangerouslySetInnerHTML={{ __html: formatMarkdownText(sections.scope) }}
                         />
-                      </div>
+                </div>
                     )}
 
                     {/* Requirements Section */}
@@ -544,7 +544,7 @@ export default function ResultsDisplay({ result, onFeedbackSubmit, isFeedbackLoa
                           className="text-orange-100 leading-relaxed prose prose-invert max-w-none"
                           dangerouslySetInnerHTML={{ __html: formatMarkdownText(sections.requirements) }}
                         />
-                      </div>
+              </div>
                     )}
 
                     {/* User Stories Section */}
@@ -557,8 +557,8 @@ export default function ResultsDisplay({ result, onFeedbackSubmit, isFeedbackLoa
                         <div 
                           className="text-pink-100 leading-relaxed prose prose-invert max-w-none"
                           dangerouslySetInnerHTML={{ __html: formatMarkdownText(sections.user_stories) }}
-                        />
-                      </div>
+                  />
+                </div>
                     )}
 
                     {/* Trade-offs & Decisions Section */}
@@ -572,10 +572,10 @@ export default function ResultsDisplay({ result, onFeedbackSubmit, isFeedbackLoa
                           className="text-red-100 leading-relaxed prose prose-invert max-w-none"
                           dangerouslySetInnerHTML={{ __html: formatMarkdownText(sections.trade_offs_decisions) }}
                         />
-                      </div>
+              </div>
                     )}
 
-                    {/* Next Steps Section */}
+            {/* Next Steps Section */}
                     {sections.next_steps && (
                       <div className="mb-8">
                         <h4 className="text-lg font-semibold text-indigo-200 mb-3 flex items-center">
@@ -586,7 +586,7 @@ export default function ResultsDisplay({ result, onFeedbackSubmit, isFeedbackLoa
                           className="text-indigo-100 leading-relaxed prose prose-invert max-w-none"
                           dangerouslySetInnerHTML={{ __html: formatMarkdownText(sections.next_steps) }}
                         />
-                      </div>
+                </div>
                     )}
 
                     {/* Success Metrics Section */}
@@ -600,7 +600,7 @@ export default function ResultsDisplay({ result, onFeedbackSubmit, isFeedbackLoa
                           className="text-teal-100 leading-relaxed prose prose-invert max-w-none"
                           dangerouslySetInnerHTML={{ __html: formatMarkdownText(sections.success_metrics) }}
                         />
-                      </div>
+              </div>
                     )}
 
                     {/* Fallback raw content if sections parsing failed */}
@@ -610,67 +610,67 @@ export default function ResultsDisplay({ result, onFeedbackSubmit, isFeedbackLoa
                           className="prose prose-invert max-w-none"
                           dangerouslySetInnerHTML={{ __html: formatMarkdownText(result.prd_content) }}
                         />
-                      </div>
-                    )}
-                  </motion.div>
+                  </div>
+                )}
+            </motion.div>
               </motion.div>
               )}
-            </motion.div>
-          )}
+          </motion.div>
+        )}
 
-          {activeTab === 'debate' && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="space-y-6"
-            >
-              <h3 className="text-xl font-bold text-white mb-6 flex items-center">
-                <Brain className="w-6 h-6 mr-3 text-purple-400" />
-                AI Stakeholder Debate
-              </h3>
-              
-              {result.debate_log && result.debate_log.length > 0 && (
-                <div className="space-y-4">
-                  {result.debate_log.map((debate, index) => (
-                    <motion.div
-                      key={index}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10"
-                    >
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center space-x-3">
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gradient-to-r from-purple-500/20 to-cyan-500/20 text-purple-200 border border-purple-500/30">
-                            <Users className="w-4 h-4 mr-2" />
-                            {debate.agent}
-                          </span>
-                          <span className="text-sm text-purple-300 bg-purple-500/20 px-2 py-1 rounded">
-                            Round {debate.round}
-                          </span>
+        {activeTab === 'debate' && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="space-y-6"
+          >
+            <h3 className="text-xl font-bold text-white mb-6 flex items-center">
+              <Brain className="w-6 h-6 mr-3 text-purple-400" />
+              AI Stakeholder Debate
+            </h3>
+            
+            {result.debate_log && result.debate_log.length > 0 && (
+              <div className="space-y-4">
+                {result.debate_log.map((debate, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10"
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-3">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gradient-to-r from-purple-500/20 to-cyan-500/20 text-purple-200 border border-purple-500/30">
+                          <Users className="w-4 h-4 mr-2" />
+                          {debate.agent}
+                        </span>
+                        <span className="text-sm text-purple-300 bg-purple-500/20 px-2 py-1 rounded">
+                          Round {debate.round}
+                        </span>
                           {debate.fallback && (
                             <span className="text-xs text-yellow-300 bg-yellow-500/20 px-2 py-1 rounded border border-yellow-500/30">
                               Fallback
                             </span>
                           )}
                         </div>
-                      </div>
-                      <div className="text-purple-100 leading-relaxed">
-                        {debate.response}
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              )}
-            </motion.div>
-          )}
-        </div>
-        
-        {/* Feedback Form - only show if we have a successful result and feedback handler */}
-        {result.success && onFeedbackSubmit && (
-          <FeedbackForm 
-            onSubmit={onFeedbackSubmit} 
-            isLoading={isFeedbackLoading || false} 
+                    </div>
+                    <div className="text-purple-100 leading-relaxed">
+                      {debate.response}
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+      </div>
+      
+      {/* Feedback Form - only show if we have a successful result and feedback handler */}
+      {result.success && onFeedbackSubmit && (
+        <FeedbackForm 
+          onSubmit={onFeedbackSubmit} 
+          isLoading={isFeedbackLoading || false} 
             iterationNumber={iterations.length}
           />
         )}

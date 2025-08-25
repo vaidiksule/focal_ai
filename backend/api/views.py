@@ -8,6 +8,7 @@ from .services.multi_agent import MultiAgentSystem
 from .services.mongodb_service import MongoDBService
 from .auth_middleware import require_auth, get_user_from_request
 from .user_views import get_user_profile, deduct_credits, get_user_transactions
+from datetime import datetime
 
 
 def _parse_prd_sections(prd_text):
@@ -625,4 +626,78 @@ def delete_chat_session(request, session_id):
         return JsonResponse({
             'success': False,
             'error': str(e)
+        }, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@require_auth
+def add_chat_message(request):
+    """Add a new chat message to a session"""
+    try:
+        data = json.loads(request.body)
+        session_id = data.get('session_id')
+        role = data.get('role')
+        content = data.get('content')
+        round_number = data.get('round_number', 1)
+        
+        if not all([session_id, role, content]):
+            return JsonResponse({
+                'success': False,
+                'error': 'Missing required fields: session_id, role, content'
+            }, status=400)
+        
+        # Get the chat session
+        mongodb_service = MongoDBService()
+        session = mongodb_service.get_chat_session(session_id)
+        if not session:
+            return JsonResponse({
+                'success': False,
+                'error': 'Chat session not found'
+            }, status=404)
+        
+        # Verify user owns this session
+        if session.get('user_id') != request.user_id:
+            return JsonResponse({
+                'success': False,
+                'error': 'Unauthorized access to chat session'
+            }, status=403)
+        
+        # Add the message
+        message_id = mongodb_service.add_chat_message(
+            session_id=session_id,
+            role=role,
+            content=content,
+            round_number=round_number
+        )
+        mongodb_service.close()
+        
+        if message_id:
+            return JsonResponse({
+                'success': True,
+                'message': {
+                    'id': message_id,
+                    'session_id': session_id,
+                    'role': role,
+                    'content': content,
+                    'round_number': round_number,
+                    'timestamp': datetime.now().isoformat()
+                }
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': 'Failed to add chat message'
+            }, status=500)
+            
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        print(f"Error adding chat message: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Internal server error'
         }, status=500)

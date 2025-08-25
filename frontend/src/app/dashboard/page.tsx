@@ -105,6 +105,33 @@ export default function Dashboard() {
     return null;
   };
 
+  const storeChatMessage = async (sessionId: string, role: string, content: string, roundNumber: number) => {
+    try {
+      const response = await fetch('http://localhost:8000/api/chat/sessions/messages/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.idToken}`,
+        },
+        body: JSON.stringify({
+          session_id: sessionId,
+          role: role,
+          content: content,
+          round_number: roundNumber
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          console.log('Chat message stored successfully:', data.message);
+        }
+      }
+    } catch (error) {
+      console.error('Error storing chat message:', error);
+    }
+  };
+
   // Show loading while checking authentication
   if (isLoading) {
     return (
@@ -143,6 +170,11 @@ export default function Dashboard() {
         sessionId = await createChatSession(ideaText);
       }
       
+      // Store user's initial idea as a chat message
+      if (sessionId) {
+        await storeChatMessage(sessionId, 'user', ideaText, 1);
+      }
+      
       const response = await fetch('http://localhost:8000/api/refine/', {
         method: 'POST',
         headers: {
@@ -158,6 +190,51 @@ export default function Dashboard() {
       console.log('Response status:', response.status);
       
       if (data.success) {
+        // Store the debate log and final result as chat messages
+        if (sessionId && data.debate_log) {
+          // Store each agent response
+          for (const debate of data.debate_log) {
+            // Map agent names to role values that match the database schema
+            let role = 'system';
+            switch (debate.agent.toLowerCase()) {
+              case 'product manager':
+                role = 'product_manager';
+                break;
+              case 'design lead':
+                role = 'design_lead';
+                break;
+              case 'engineering lead':
+                role = 'engineering_lead';
+                break;
+              case 'marketing & sales head':
+                role = 'marketing_sales_head';
+                break;
+              case 'business manager':
+                role = 'business_manager';
+                break;
+              default:
+                role = 'system';
+            }
+            
+            await storeChatMessage(
+              sessionId, 
+              role, 
+              debate.response, 
+              debate.round
+            );
+          }
+          
+          // Store the final PRD result
+          if (data.prd_content) {
+            await storeChatMessage(
+              sessionId,
+              'system',
+              `PRD Generated: ${data.prd_content.substring(0, 200)}...`,
+              1
+            );
+          }
+        }
+        
         // Update user data with the response to refresh credits
         if (data.user) {
           // Update the user context with new data (including updated credits)
@@ -219,6 +296,58 @@ export default function Dashboard() {
       const data = await response.json();
       
       if (data.success) {
+        // Store feedback and refined results as chat messages
+        if (currentSessionId && data.debate_log) {
+          // Store user feedback
+          await storeChatMessage(
+            currentSessionId,
+            'user',
+            feedback,
+            1
+          );
+          
+          // Store each agent response from feedback debate
+          for (const debate of data.debate_log) {
+            let role = 'system';
+            switch (debate.agent.toLowerCase()) {
+              case 'product manager':
+                role = 'product_manager';
+                break;
+              case 'design lead':
+                role = 'design_lead';
+                break;
+              case 'engineering lead':
+                role = 'engineering_lead';
+                break;
+              case 'marketing & sales head':
+                role = 'marketing_sales_head';
+                break;
+              case 'business manager':
+                role = 'business_manager';
+                break;
+              default:
+                role = 'system';
+            }
+            
+            await storeChatMessage(
+              currentSessionId, 
+              role, 
+              debate.response, 
+              debate.round
+            );
+          }
+          
+          // Store the refined PRD result
+          if (data.prd_content) {
+            await storeChatMessage(
+              currentSessionId,
+              'system',
+              `Refined PRD: ${data.prd_content.substring(0, 200)}...`,
+              1
+            );
+          }
+        }
+        
         // Update user data with the response to refresh credits
         if (data.user) {
           updateUser(data.user);

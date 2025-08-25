@@ -148,7 +148,17 @@ class MongoDBService:
             {
                 '$addFields': {
                     'debate_count': {'$size': '$debates'},
-                    'latest_requirement': {'$arrayElemAt': ['$requirements', -1]}
+                    'latest_requirement': {
+                        '$cond': {
+                            'if': {'$gt': [{'$size': '$requirements'}, 0]},
+                            'then': {
+                                'refined_requirements': {'$arrayElemAt': ['$requirements.refined_requirements', -1]},
+                                'trade_offs': {'$arrayElemAt': ['$requirements.trade_offs', -1]},
+                                'next_steps': {'$arrayElemAt': ['$requirements.next_steps', -1]}
+                            },
+                            'else': None
+                        }
+                    }
                 }
             },
             {

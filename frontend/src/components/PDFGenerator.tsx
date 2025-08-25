@@ -1,7 +1,7 @@
 'use client';
 
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
-import { RefinementResult } from '../types/types';
+import { RefinementResult } from '@/types/types';
 
 // Create styles
 const styles = StyleSheet.create({
@@ -287,7 +287,7 @@ const PDFGenerator = ({ result, iterations }: PDFGeneratorProps) => (
       {result.debate_log && result.debate_log.length > 0 && (
         <View style={styles.debateLog}>
           <Text style={styles.sectionTitle}>AI Stakeholder Debate Log</Text>
-          {result.debate_log.map((entry, index) => (
+          {result.debate_log.map((entry: { agent: string; response: string; round: number; fallback?: boolean }, index: number) => (
             <View key={index} style={styles.debateEntry}>
               <Text style={styles.agentName}>{entry.agent}</Text>
               <Text style={styles.response}>{entry.response}</Text>
@@ -300,7 +300,7 @@ const PDFGenerator = ({ result, iterations }: PDFGeneratorProps) => (
       {iterations && iterations.length > 0 && (
         <View style={styles.iterations}>
           <Text style={styles.sectionTitle}>Feedback Iterations</Text>
-          {iterations.map((iteration, index) => (
+          {iterations.map((iteration: { id: string; feedback: string; result: RefinementResult; timestamp: Date }, index: number) => (
             <View key={iteration.id} style={styles.iteration}>
               <Text style={styles.iterationTitle}>
                 Iteration {index + 1} - {new Date(iteration.timestamp).toLocaleDateString()}

@@ -7,7 +7,7 @@ import json
 import time
 
 
-ROUNDS = 3
+ROUNDS = 2
 
 class MultiAgentSystem:
     """Multi-agent system for requirement refinement using LangChain + Gemini"""
@@ -219,7 +219,7 @@ Suggestions: Define clear success metrics, prioritize features based on user val
         
         return debate_log
     
-    def run_feedback_debate(self, idea, previous_debate_log, user_feedback, rounds=2):
+    def run_feedback_debate(self, idea, previous_debate_log, user_feedback, rounds=ROUNDS):
         """Run multi-agent debate based on user feedback and previous discussion with proper rounds"""
         debate_log = []
         
