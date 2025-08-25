@@ -1,0 +1,18 @@
+# Core Django and web framework
+Django>=4.2,<5.0
+django-cors-headers>=3.11.0
+asgiref>=3.9.1
+
+# Database
+pymongo>=3.11.4
+
+# Google AI
+google-generativeai>=0.8.5
+google-ai-generativelanguage>=0.6.18
+
+# HTTP
+requests>=2.32.5
+
+# Environment
+python-dotenv>=1.1.1
+pytz>=2025.2
