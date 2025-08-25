@@ -73,8 +73,8 @@ if not CORS_ALLOW_ALL_ORIGINS:
     CORS_ALLOWED_ORIGINS = [
         "http://localhost:3000",
         "https://localhost:3000",
-        "https://focal-ai-frontend.vercel.app",  # Your Vercel frontend
-        "https://focal-ai-frontend-git-main-vaidiksule.vercel.app",  # Vercel preview
+        "https://focal-ai-theta.vercel.app/",  # Your Vercel frontend
+        "https://focal-ai-theta.vercel.app/dashboard",  # Vercel preview
     ]
 
 ROOT_URLCONF = 'focalai_backend.urls'
