@@ -2,6 +2,7 @@
 Django>=4.2,<5.0
 django-cors-headers>=3.11.0
 asgiref>=3.9.1
+gunicorn>=21.0.0
 
 # Database
 pymongo>=3.11.4
