@@ -28,9 +28,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-fg7^i@*cy@5b=m(u@m6xl_-v4-t3q$y&h^57r+sciy!ibrqnb-')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
+# Allow environment variable to override ALLOWED_HOSTS
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',') if os.getenv('ALLOWED_HOSTS') else [
+    'localhost', 
+    '127.0.0.1', 
+    '0.0.0.0',
+    'focal-ai-z53x.onrender.com',  # Render production domain
+    '.onrender.com',  # Allow all Render subdomains
+]
 
 
 # Application definition
@@ -58,8 +65,17 @@ MIDDLEWARE = [
 ]
 
 # CORS settings
-CORS_ALLOW_ALL_ORIGINS = True  # Only for development
+CORS_ALLOW_ALL_ORIGINS = os.getenv('CORS_ALLOW_ALL_ORIGINS', 'False').lower() == 'true'  # Configurable for production
 CORS_ALLOW_CREDENTIALS = True
+
+# Allow specific origins in production
+if not CORS_ALLOW_ALL_ORIGINS:
+    CORS_ALLOWED_ORIGINS = [
+        "http://localhost:3000",
+        "https://localhost:3000",
+        "https://focal-ai-frontend.vercel.app",  # Your Vercel frontend
+        "https://focal-ai-frontend-git-main-vaidiksule.vercel.app",  # Vercel preview
+    ]
 
 ROOT_URLCONF = 'focalai_backend.urls'
 
