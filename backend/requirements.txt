@@ -8,14 +8,14 @@ pymongo>=3.11.4
 SQLAlchemy>=2.0.43
 sqlparse>=0.5.3
 
-# Google AI and Generative AI - let pip resolve versions
-google-generativeai
-google-ai-generativelanguage
-google-api-core
-google-api-python-client
-google-auth
-google-auth-httplib2
-googleapis-common-protos
+# Google AI and Generative AI - compatible versions
+google-generativeai==0.8.5
+google-ai-generativelanguage==0.6.15
+google-api-core>=2.25.1
+google-api-python-client>=2.179.0
+google-auth>=2.40.3
+google-auth-httplib2>=0.2.0
+googleapis-common-protos>=1.70.0
 
 # LangChain and AI framework - let pip resolve versions
 langchain
